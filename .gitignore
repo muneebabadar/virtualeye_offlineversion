@@ -43,4 +43,5 @@ app-example
 /ios
 /android
 
-/node_modules
+__pycache__/
+*.py[cod]

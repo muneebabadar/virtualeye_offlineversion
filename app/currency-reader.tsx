@@ -100,7 +100,7 @@ const CurrencyReaderScreen = () => {
           (prev.confidence > current.confidence) ? prev : current
         );
 
-        const currencyName = bestDetection.class_name;
+        const currencyName = bestDetection.class;
         const confidence = (bestDetection.confidence * 100).toFixed(0);
         
         // Only speak if it's a different detection or confidence changed significantly

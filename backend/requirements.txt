@@ -27,5 +27,6 @@ torchvision==0.16.2
 Pillow==10.2.0
 timm==0.9.12
 opencv-python==4.9.0.72 
+# opencv-python-headless (lighter and faster to install, without GUI component)
 ultralytics==8.3.234
 numpy==1.24.3
