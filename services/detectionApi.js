@@ -5,7 +5,13 @@ import { Platform } from "react-native";
 // 1. API Base URL
 // =====================
 // Make sure this matches your FastAPI server IP on the same network
-export const API_BASE_URL = "http:// 192.168.100.23:8081";
+
+//ASHBAH HOME IP:
+export const API_BASE_URL = "http://192.168.18.53:8000";
+
+//ASHBAH WORK IP
+// export const API_BASE_URL = "http://10.220.94.36:8000";
+
 
 // =====================
 // 2. Helper: Upload Image
@@ -46,9 +52,6 @@ const uploadImage = async (endpoint, imageUri) => {
   }
 };
 
-// =====================
-// 3. Exported Functions
-// =====================
 export const detectCurrency = async (imageUri, confidence = 0.5) => {
   return uploadImage("/detect-currency", imageUri);
 };
@@ -60,6 +63,15 @@ export const detectObjects = async (imageUri, confidence = 0.3) => {
 export const detectColor = async (imageUri) => {
   return uploadImage("/detect-color-simple", imageUri);
 };
+
+export const detectObjectNavigation = async (imageUri, confidence = 0.25) => {
+  return uploadImage("/object-navigation-detect", imageUri);
+};
+export const detectObjectsWithColor = async (imageUri, confidence = 0.25) => {
+  return uploadImage("/detect-objects-with-color", imageUri);
+};
+
+
 
 // =====================
 // 4. Health Check

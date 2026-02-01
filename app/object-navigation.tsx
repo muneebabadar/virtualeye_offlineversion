@@ -4,28 +4,14 @@ import { useAccessibility } from "@/contexts/AccessibilityContext";
 import { useAccessibleColors } from "@/hooks/useAccessibleColors";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
-import { useTranslation } from "react-i18next";
 import React, { useEffect, useRef, useState } from "react";
-import { 
-  ActivityIndicator, 
-  Alert, 
-  StyleSheet, 
-  TouchableOpacity, 
-  View, 
-  I18nManager, 
-  PixelRatio 
-} from "react-native";
-import { checkApiHealth, detectObjects } from "../services/detectionApi";
+import { ActivityIndicator, Alert, StyleSheet, TouchableOpacity, View } from "react-native";
 
-// FIX 7006: Define the shape of a detection object
-interface Detection {
-  class: string;
-  confidence: number;
-}
+// ✅ IMPORTANT: use detectObjectNavigation (NOT detectObjects)
+import { checkApiHealth, detectObjectNavigation } from "../services/detectionApi";
 
 const ObjectDetectionScreen = () => {
   const router = useRouter();
-  const { t } = useTranslation();
   const { speak, hapticFeedback } = useAccessibility();
   const colors = useAccessibleColors();
 
@@ -35,24 +21,24 @@ const ObjectDetectionScreen = () => {
   const [apiConnected, setApiConnected] = useState(false);
   const [isAutoDetecting, setIsAutoDetecting] = useState(false);
 
-  // FIX 2339: Explicitly type the camera ref
   const cameraRef = useRef<CameraView>(null);
-
-  // FIX 2322: Explicitly type the interval ref to handle numbers (Interval IDs)
-  const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const detectionIntervalRef = useRef<any>(null);
 
   useEffect(() => {
     if (!permission) requestPermission();
   }, [permission, requestPermission]);
 
   useEffect(() => {
-    speak?.(t("objectDetection.screenIntro"), true);
+    speak?.("Object Navigation Screen. Use camera to detect objects and people.", true);
     checkConnection();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (isAutoDetecting && apiConnected) {
-      detectionIntervalRef.current = setInterval(captureObjects, 2000);
+      detectionIntervalRef.current = setInterval(() => {
+        captureObjects();
+      }, 2000);
     } else {
       if (detectionIntervalRef.current) {
         clearInterval(detectionIntervalRef.current);
@@ -71,15 +57,26 @@ const ObjectDetectionScreen = () => {
 
     if (!isConnected) {
       Alert.alert(
-        t("objectDetection.apiNotConnected"),
-        t("objectDetection.apiNotConnected")
+        "API Not Connected",
+        "Cannot connect to detection server. Make sure:\n" +
+          "1. FastAPI server is running\n" +
+          "2. Both devices are on same WiFi\n" +
+          "3. IP address is correct in detectionApi.js"
       );
     }
   };
 
+  const speakIfNew = (message: string) => {
+    if (lastDetection !== message) {
+      setLastDetection(message);
+      speak?.(message, true);
+      hapticFeedback?.("success");
+    }
+  };
+
   const captureObjects = async () => {
-    // FIX 2339: Added proper null check for TypeScript
-    if (!cameraRef.current || isDetecting || !apiConnected) return;
+    if (!cameraRef.current || isDetecting) return;
+    if (!apiConnected) return;
 
     setIsDetecting(true);
 
@@ -90,27 +87,64 @@ const ObjectDetectionScreen = () => {
         exif: false,
       });
 
-      if (!photo?.uri) throw new Error();
+      if (!photo?.uri) throw new Error("Could not capture image");
 
-      const result = await detectObjects(photo.uri, 0.3);
+      // ✅ THIS calls /object-navigation-detect (your full pipeline)
+      const result = await detectObjectNavigation(photo.uri, 0.25);
 
-      if (result.detections?.length) {
-        // FIX 7006: Properly typed reduce function
-        const best = result.detections.reduce((a: Detection, b: Detection) =>
-          a.confidence > b.confidence ? a : b
-        );
+      // ----------------------------
+      // 1) PRIORITY: recognized persons
+      // ----------------------------
+      if (result?.persons && Array.isArray(result.persons) && result.persons.length > 0) {
+        const recognized = result.persons.filter((p: any) => p?.label && p.label !== "person");
 
-        if (lastDetection !== best.class) {
-          setLastDetection(best.class);
-          speak?.(best.class, true);
-          hapticFeedback?.("success");
+        if (recognized.length > 0) {
+          const p = recognized[0];
+          const personName = p.label;
+          const position = p.position || "center";
+          const distance = p.distance || "medium";
+          const message = `${personName} is on your ${position}, ${distance}`;
+          speakIfNew(message);
+          return;
         }
-      } else {
-        setLastDetection("");
+
+        // persons detected but unknown
+        const unknown = result.persons.find((p: any) => p?.label === "person");
+        if (unknown) {
+          const position = unknown.position || "center";
+          const distance = unknown.distance || "medium";
+          const msg = `Person detected on your ${position}, ${distance}`;
+          speakIfNew(msg);
+          return;
+        }
       }
-    } catch (err) {
-      speak?.(t("objectDetection.detectionFailed"), true);
-      hapticFeedback?.("error");
+
+      // ----------------------------
+      // 2) fallback: objects
+      // ----------------------------
+      const dets = result?.detections;
+      if (dets && Array.isArray(dets) && dets.length > 0) {
+        // your backend uses class_name, confidence
+        const best = dets.reduce((a: any, b: any) => (a.confidence > b.confidence ? a : b));
+
+        const objectName =
+          best.class_name || best.className || best.class || "Unknown object";
+
+        // your backend currently doesn't include position/distance for objects,
+        // so keep it simple.
+        const message = `${objectName}`;
+        speakIfNew(message);
+        return;
+      }
+
+      // nothing detected
+      if (lastDetection !== "") setLastDetection("");
+    } catch (error) {
+      if (!isAutoDetecting) {
+        speak?.("Detection failed", true);
+        hapticFeedback?.("error");
+        Alert.alert("Error", "Could not process the image");
+      }
     } finally {
       setIsDetecting(false);
     }
@@ -118,7 +152,8 @@ const ObjectDetectionScreen = () => {
 
   const toggleAuto = () => {
     if (!apiConnected) {
-      speak?.(t("objectDetection.apiNotConnected"), true);
+      speak?.("Error: API not connected", true);
+      Alert.alert("Error", "API not connected");
       return;
     }
 
@@ -126,14 +161,12 @@ const ObjectDetectionScreen = () => {
     setIsAutoDetecting(next);
     hapticFeedback?.("medium");
 
-    speak?.(
-      next
-        ? t("objectDetection.startDetection")
-        : t("objectDetection.stopDetection"),
-      true
-    );
-
-    if (!next) setLastDetection("");
+    if (next) {
+      speak?.("Object navigation scanning started", true);
+    } else {
+      speak?.("Object navigation scanning stopped", true);
+      setLastDetection("");
+    }
   };
 
   const renderCamera = () => {
@@ -143,9 +176,11 @@ const ObjectDetectionScreen = () => {
       return (
         <View style={[styles.permissionCenter, { backgroundColor: colors.background }]}>
           <AccessibleButton
-            title={t("objectDetection.allowCamera")}
+            title="Allow Camera Access"
             onPress={requestPermission}
-            variant="primary"
+            accessibilityLabel="Allow camera access"
+            accessibilityHint="Grant camera permission to detect objects"
+            style={styles.permissionButton}
           />
         </View>
       );
@@ -153,70 +188,61 @@ const ObjectDetectionScreen = () => {
 
     return (
       <View style={{ flex: 1 }}>
-        <CameraView ref={cameraRef} style={styles.camera} facing="back" />
+        <CameraView style={styles.camera} facing="back" ref={cameraRef} />
 
-        {/* Status Overlay - RTL Aware */}
         <View
           style={[
-            styles.statusOverlay, 
-            { 
-              backgroundColor: colors.card, 
-              borderColor: colors.border,
-              flexDirection: I18nManager.isRTL ? 'row-reverse' : 'row' 
-            }
+            styles.statusOverlay,
+            { backgroundColor: colors.card, borderColor: colors.border },
           ]}
           accessible
-          accessibilityLabel={`${t("objectDetection.apiStatus")}: ${apiConnected ? t("objectDetection.connected") : t("objectDetection.disconnected")}`}
+          accessibilityLabel={`Connection status: ${apiConnected ? "Connected" : "Disconnected"}`}
         >
           <View
             style={[
               styles.statusDot,
-              { 
-                backgroundColor: apiConnected ? colors.success : colors.danger,
-                borderRadius: apiConnected ? 7 : 0 // Square for disconnected
-              },
+              { backgroundColor: apiConnected ? colors.success : colors.danger },
             ]}
           />
-          <AccessibleText style={{ color: colors.text, flex: 1, textAlign: I18nManager.isRTL ? 'right' : 'left' }}>
-            {apiConnected ? t("objectDetection.connected") : t("objectDetection.disconnected")}
+          <AccessibleText style={[styles.statusText, { color: colors.text }]}>
+            {apiConnected ? "Connected" : "Disconnected"}
           </AccessibleText>
 
           <TouchableOpacity
             onPress={checkConnection}
             style={styles.refreshButton}
-            hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+            hitSlop={10}
             accessible
             accessibilityRole="button"
-            accessibilityLabel={t("objectDetection.refreshConnection")}
+            accessibilityLabel="Refresh connection status"
+            accessibilityHint="Check API connection status"
           >
-            <AccessibleText style={{ fontSize: 24 }}>🔄</AccessibleText>
+            <AccessibleText style={[styles.refreshIcon, { color: colors.text }]}>🔄</AccessibleText>
           </TouchableOpacity>
         </View>
 
-        {/* Live Region for Scanning Feedback */}
         {isAutoDetecting && (
-          <View 
-            style={[styles.detectingIndicator, { backgroundColor: colors.primary }]}
-            accessibilityLiveRegion="polite"
+          <View
+            style={[
+              styles.detectingIndicator,
+              { backgroundColor: colors.primary, borderColor: colors.border },
+            ]}
           >
-            <ActivityIndicator color={colors.textInverse} size="large" />
-            <AccessibleText style={{ color: colors.textInverse, marginLeft: 12, fontWeight: '700' }}>
-              {t("objectDetection.scanning")}
+            <ActivityIndicator size="small" color={colors.textInverse} />
+            <AccessibleText style={[styles.detectingText, { color: colors.textInverse }]}>
+              Scanning...
             </AccessibleText>
           </View>
         )}
 
-        {/* Result Overlay */}
         {lastDetection !== "" && (
-          <View 
-            style={[styles.resultBox, { backgroundColor: colors.primary, borderColor: colors.textInverse, borderWidth: 2 }]}
-            accessibilityRole="alert"
+          <View
+            style={[
+              styles.resultBox,
+              { backgroundColor: colors.primary, borderColor: colors.border },
+            ]}
           >
-            <AccessibleText 
-              style={{ color: colors.textInverse, fontSize: 32, textAlign: 'center' }}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-            >
+            <AccessibleText style={[styles.resultText, { color: colors.textInverse }]}>
               {lastDetection}
             </AccessibleText>
           </View>
@@ -224,11 +250,15 @@ const ObjectDetectionScreen = () => {
 
         <View style={styles.toggleContainer}>
           <AccessibleButton
-            title={isAutoDetecting ? t("objectDetection.stopDetection") : t("objectDetection.startDetection")}
+            title={`${isAutoDetecting ? "Stop" : "Start"} Detection`}
             onPress={toggleAuto}
             disabled={!apiConnected}
-            accessibilityRole="switch"
-            accessibilityState={{ checked: isAutoDetecting }}
+            accessibilityLabel={`${isAutoDetecting ? "Stop" : "Start"} object detection`}
+            accessibilityHint={
+              apiConnected
+                ? `Tap to ${isAutoDetecting ? "stop" : "start"} automatic object detection`
+                : "API not connected"
+            }
             style={[
               styles.toggleButton,
               isAutoDetecting && { backgroundColor: colors.danger },
@@ -243,26 +273,39 @@ const ObjectDetectionScreen = () => {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.topBar, { backgroundColor: colors.primary }]}>
-        <AccessibleText style={{ color: colors.textInverse, fontSize: 24, fontWeight: '800' }} accessibilityRole="header">
-          {t("objectDetection.title")}
+        <AccessibleText
+          style={[styles.title, { color: colors.textInverse }]}
+          accessibilityRole="header"
+          level={1}
+        >
+          Object Navigation
         </AccessibleText>
       </View>
 
-      <View style={{ flex: 1 }}>{renderCamera()}</View>
+      <View style={styles.cameraContainer}>{renderCamera()}</View>
 
-      <View style={[styles.bottomBar, { flexDirection: I18nManager.isRTL ? 'row-reverse' : 'row' }]}>
+      <View style={[styles.bottomBar, { backgroundColor: colors.background }]}>
         <AccessibleButton
-          title={t("objectDetection.modes")}
+          title="Modes"
           onPress={() => {
             setIsAutoDetecting(false);
+            hapticFeedback?.("light");
+            speak?.("Navigating to modes selection", true);
             router.push("/features");
           }}
+          accessibilityLabel="Modes"
+          accessibilityHint="Switch between different V-EYE features"
           style={styles.bottomButton}
         />
 
         <AccessibleButton
-          title={I18nManager.isRTL ? "انگریزی" : "ENG"}
-          onPress={() => speak?.(t("objectDetection.languageEnglish"), true)}
+          title="ENG"
+          onPress={() => {
+            hapticFeedback?.("light");
+            speak?.("Language is English", true);
+          }}
+          accessibilityLabel="Language"
+          accessibilityHint="Current language is English"
           style={styles.bottomButton}
         />
       </View>
@@ -274,44 +317,74 @@ export default ObjectDetectionScreen;
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  topBar: { minHeight: 100, justifyContent: "center", alignItems: "center", paddingTop: 30 },
+  topBar: {
+    height: 120,
+    justifyContent: "center",
+    alignItems: "center",
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  title: { fontSize: 24, fontWeight: "800" },
+
+  cameraContainer: { flex: 1 },
   camera: { flex: 1 },
-  permissionCenter: { flex: 1, justifyContent: "center", alignItems: "center" },
+
+  permissionCenter: { flex: 1, alignItems: "center", justifyContent: "center" },
+  permissionButton: { paddingHorizontal: 24, paddingVertical: 16, borderRadius: 16, borderWidth: 1 },
+
   statusOverlay: {
     position: "absolute",
     top: 20,
     left: 20,
     right: 20,
-    alignItems: "center",
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 2,
-    zIndex: 10,
-  },
-  statusDot: { width: 14, height: 14, marginRight: 10 },
-  refreshButton: { minWidth: 48, minHeight: 48, alignItems: "center", justifyContent: "center" },
-  detectingIndicator: {
-    position: "absolute",
-    top: 110,
-    left: 20,
-    right: 20,
     flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
     padding: 12,
-    borderRadius: 12,
+    borderRadius: 10,
+    borderWidth: 2,
   },
-  resultBox: {
+  statusDot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
+  statusText: { flex: 1 },
+
+  refreshButton: {
+    minWidth: 48,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
+  },
+  refreshIcon: { fontSize: 18 },
+
+  detectingIndicator: {
     position: "absolute",
-    top: "35%",
+    top: 70,
     left: 20,
     right: 20,
-    padding: 30,
-    borderRadius: 24,
-    elevation: 5,
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  toggleContainer: { position: "absolute", bottom: 40, left: 20, right: 20, alignItems: "center" },
-  toggleButton: { width: '100%', paddingVertical: 22, borderRadius: 32 },
-  bottomBar: { padding: 16, gap: 12 },
-  bottomButton: { flex: 1, minHeight: 64 },
+  detectingText: { marginLeft: 8, fontWeight: "700" },
+
+  resultBox: {
+    position: "absolute",
+    top: "40%",
+    left: 30,
+    right: 30,
+    padding: 30,
+    borderRadius: 20,
+    alignItems: "center",
+    borderWidth: 2,
+  },
+  resultText: { fontSize: 32, fontWeight: "800" },
+
+  toggleContainer: { position: "absolute", bottom: 30, left: 0, right: 0, alignItems: "center" },
+  toggleButton: { minWidth: 280, paddingVertical: 20, paddingHorizontal: 50, borderRadius: 30, alignItems: "center" },
+
+  bottomBar: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 12 },
+  bottomButton: { flex: 1, height: 80, borderRadius: 18, marginHorizontal: 6, alignItems: "center", justifyContent: "center" },
 });
+
