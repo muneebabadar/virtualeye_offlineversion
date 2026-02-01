@@ -4,14 +4,17 @@ import { useAccessibility } from "@/contexts/AccessibilityContext";
 import { useAccessibleColors } from "@/hooks/useAccessibleColors";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, StyleSheet, TouchableOpacity, View, I18nManager, PixelRatio } from "react-native";
 import { checkApiHealth, detectCurrency } from "../services/detectionApi";
 
 const CurrencyReaderScreen = () => {
   const router = useRouter();
+  const { t } = useTranslation();
   const { speak, hapticFeedback } = useAccessibility();
   const colors = useAccessibleColors();
+  
   const [permission, requestPermission] = useCameraPermissions();
   const [isDetecting, setIsDetecting] = useState(false);
   const [lastDetection, setLastDetection] = useState<string>("");
@@ -19,217 +22,121 @@ const CurrencyReaderScreen = () => {
   const [isAutoDetecting, setIsAutoDetecting] = useState(false);
 
   const cameraRef = useRef<CameraView>(null);
-  const detectionIntervalRef = useRef<any>(null);
+  const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Initial Announcement
   useEffect(() => {
-    if (!permission) requestPermission();
-  }, [permission, requestPermission]);
-
-  useEffect(() => {
-    speak?.("Currency Reader Screen. Use camera to detect currency notes.", true);
+    speak?.(t("currencyReader.announcement"), true);
     checkConnection();
   }, []);
 
+  // Interval Logic
   useEffect(() => {
     if (isAutoDetecting && apiConnected) {
-      detectionIntervalRef.current = setInterval(() => {
-        captureCurrency();
-      }, 2000);
+      detectionIntervalRef.current = setInterval(captureCurrency, 2500);
     } else {
       if (detectionIntervalRef.current) {
         clearInterval(detectionIntervalRef.current);
         detectionIntervalRef.current = null;
       }
     }
-    return () => {
-      if (detectionIntervalRef.current) clearInterval(detectionIntervalRef.current);
-    };
+    return () => { if (detectionIntervalRef.current) clearInterval(detectionIntervalRef.current); };
   }, [isAutoDetecting, apiConnected]);
 
   const checkConnection = async () => {
     const isConnected = await checkApiHealth();
     setApiConnected(isConnected);
-
     if (!isConnected) {
-      Alert.alert(
-        "API Not Connected",
-        "Cannot connect to detection server. Make sure:\n" +
-          "1. FastAPI server is running\n" +
-          "2. Both devices are on same WiFi\n" +
-          "3. IP address is correct in detectionApi.js"
-      );
+      Alert.alert(t("objectDetection.apiNotConnected"), t("objectDetection.apiNotConnected"));
     }
   };
 
   const captureCurrency = async () => {
-    if (!cameraRef.current || isDetecting) return;
-    if (!apiConnected) return;
-
+    if (!cameraRef.current || isDetecting || !apiConnected) return;
     setIsDetecting(true);
-
     try {
-      const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.8,
-        base64: false,
-        exif: false,
-      });
-
-      if (!photo?.uri) throw new Error("Failed to capture photo");
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
+      if (!photo?.uri) throw new Error();
 
       const result = await detectCurrency(photo.uri, 0.5);
-
-      if (result.detections && result.detections.length > 0) {
-        const best = result.detections.reduce((prev: any, current: any) =>
-          prev.confidence > current.confidence ? prev : current
-        );
-
-        const currencyName = best.class;
-        const message = `${currencyName}`;
-
-        if (lastDetection !== message) {
-          setLastDetection(message);
+      if (result.detections?.length > 0) {
+        const best = result.detections.reduce((a: any, b: any) => a.confidence > b.confidence ? a : b);
+        if (lastDetection !== best.class) {
+          setLastDetection(best.class);
           hapticFeedback?.("success");
-          speak?.(message, true);
+          speak?.(best.class, true);
         }
       } else {
-        if (lastDetection !== "") setLastDetection("");
+        setLastDetection("");
       }
-    } catch (error) {
-      if (!isAutoDetecting) {
-        speak?.("Detection failed. Please try again.", true);
-        hapticFeedback?.("error");
-        Alert.alert("Detection Failed", error instanceof Error ? error.message : "Unknown error");
-      }
+    } catch (e) {
+       // Silent fail in auto-mode to avoid spamming "failed"
     } finally {
       setIsDetecting(false);
     }
   };
 
-  const toggleAutoDetection = () => {
+  const toggleAuto = () => {
     if (!apiConnected) {
-      speak?.("API not connected. Please check connection.", true);
-      hapticFeedback?.("error");
-      Alert.alert("Error", "API not connected. Please check connection.");
+      speak?.(t("objectDetection.apiNotConnected"), true);
       return;
     }
-
-    const newState = !isAutoDetecting;
-    setIsAutoDetecting(newState);
+    const next = !isAutoDetecting;
+    setIsAutoDetecting(next);
     hapticFeedback?.("medium");
-
-    if (newState) {
-      speak?.("Currency scanning started", true);
-    } else {
-      speak?.("Currency scanning stopped", true);
-      setLastDetection("");
-    }
+    speak?.(next ? t("objectDetection.startDetection") : t("objectDetection.stopDetection"), true);
   };
 
   const renderCamera = () => {
-    if (!permission) return <View />;
-
-    if (!permission.granted) {
+    if (!permission?.granted) {
       return (
-        <View style={[styles.permissionCenterOverlay, { backgroundColor: colors.background }]}>
-          <AccessibleButton
-            title="Allow Camera for Live Feed"
-            onPress={requestPermission}
-            accessibilityLabel="Allow camera access"
-            accessibilityHint="Grant camera permission to detect currency notes"
-            style={styles.permissionButton}
-          />
+        <View style={styles.permissionCenter}>
+          <AccessibleButton title={t("personCapture.allowCamera")} onPress={requestPermission} />
         </View>
       );
     }
 
     return (
-      <View style={{ flex: 1, position: "relative" }}>
-        <CameraView style={styles.camera} facing="back" ref={cameraRef} />
+      <View style={{ flex: 1 }}>
+        <CameraView style={styles.camera} facing="back" ref={cameraRef} accessible={true} accessibilityLabel={t("personCapture.liveFeedLabel")} />
 
-        {/* API Status */}
-        <View
-          style={[
-            styles.statusOverlay,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}
-          accessible
-          accessibilityLabel={`Connection status: ${apiConnected ? "Connected" : "Disconnected"}`}
-        >
-          <View
-            style={[
-              styles.statusDot,
-              { backgroundColor: apiConnected ? colors.success : colors.danger },
-            ]}
-          />
-          <AccessibleText style={[styles.statusText, { color: colors.text }]}>
-            {apiConnected ? "Connected" : "Disconnected"}
+        {/* Connection Status Overlay */}
+        <View style={[styles.statusOverlay, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: I18nManager.isRTL ? 'row-reverse' : 'row' }]}
+          accessible accessibilityLabel={`${t("objectDetection.connected")}: ${apiConnected ? t("connected") : t("disconnected")}`}>
+          <View style={[styles.statusDot, { backgroundColor: apiConnected ? colors.success : colors.danger }]} />
+          <AccessibleText style={{ color: colors.text, flex: 1, textAlign: I18nManager.isRTL ? 'right' : 'left' }}>
+            {apiConnected ? t("objectDetection.connected") : t("objectDetection.disconnected")}
           </AccessibleText>
-
-          {/* FIX: Touch target >= 48x48 + clear label */}
-          <TouchableOpacity
-            onPress={checkConnection}
-            style={styles.refreshButton}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel="Refresh connection status"
-            accessibilityHint="Checks whether the detection server is connected"
-          >
-            <AccessibleText style={[styles.refreshText, { color: colors.text }]}>🔄</AccessibleText>
+          <TouchableOpacity onPress={checkConnection} style={styles.refreshButton} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }} accessibilityRole="button" accessibilityLabel={t("objectDetection.refreshConnection")}>
+            <AccessibleText style={{ fontSize: 24 }}>🔄</AccessibleText>
           </TouchableOpacity>
         </View>
 
-        {/* Scanning banner */}
+        {/* Scanning Live Region */}
         {isAutoDetecting && (
-          <View
-            style={[
-              styles.detectingIndicator,
-              { backgroundColor: colors.primary, borderColor: colors.border },
-            ]}
-            accessible
-            accessibilityLabel="Scanning for currency notes"
-          >
+          <View style={[styles.detectingIndicator, { backgroundColor: colors.primary }]} accessibilityLiveRegion="polite">
             <ActivityIndicator size="small" color={colors.textInverse} />
-            <AccessibleText style={[styles.detectingIndicatorText, { color: colors.textInverse }]}>
-              Scanning...
-            </AccessibleText>
+            <AccessibleText style={{ color: colors.textInverse, marginLeft: 8, fontWeight: '700' }}>{t("objectDetection.scanning")}</AccessibleText>
           </View>
         )}
 
-        {/* Result */}
+        {/* Detection Result Box */}
         {lastDetection !== "" && (
-          <View
-            style={[
-              styles.resultContainer,
-              { backgroundColor: colors.primary, borderColor: colors.border },
-            ]}
-            accessible
-            accessibilityLabel={`Detected currency: ${lastDetection}`}
-          >
-            <AccessibleText style={[styles.resultText, { color: colors.textInverse }]}>
+          <View style={[styles.resultContainer, { backgroundColor: colors.primary, borderColor: colors.textInverse, borderWidth: 2 }]} accessibilityRole="alert">
+            <AccessibleText style={{ color: colors.textInverse, fontSize: 32, textAlign: 'center' }} adjustsFontSizeToFit numberOfLines={1}>
               {lastDetection}
             </AccessibleText>
           </View>
         )}
 
-        {/* Toggle */}
         <View style={styles.toggleOverlay}>
           <AccessibleButton
-            title={`${isAutoDetecting ? "Stop" : "Start"} Detection`}
-            onPress={toggleAutoDetection}
+            title={isAutoDetecting ? t("objectDetection.stopDetection") : t("objectDetection.startDetection")}
+            onPress={toggleAuto}
             disabled={!apiConnected}
-            // FIX: Explicit label (prevents "unexposed text" warning)
-            accessibilityLabel={`${isAutoDetecting ? "Stop" : "Start"} Detection`}
-            accessibilityHint={
-              apiConnected
-                ? `Tap to ${isAutoDetecting ? "stop" : "start"} automatic currency detection`
-                : "API not connected"
-            }
-            style={[
-              styles.toggleButton,
-              isAutoDetecting && { backgroundColor: colors.danger },
-              !apiConnected && { backgroundColor: colors.disabled },
-            ]}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: isAutoDetecting }}
+            style={[styles.toggleButton, isAutoDetecting && { backgroundColor: colors.danger }]}
           />
         </View>
       </View>
@@ -239,57 +146,37 @@ const CurrencyReaderScreen = () => {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.topBar, { backgroundColor: colors.primary }]}>
-        <AccessibleText
-          style={[styles.topTitle, { color: colors.textInverse }]}
-          accessibilityRole="header"
-          level={1}
-        >
-          Currency Reader
-        </AccessibleText>
+        <AccessibleText style={{ color: colors.textInverse, fontSize: 24, fontWeight: '800' }} accessibilityRole="header">{t("welcome.currency")}</AccessibleText>
       </View>
-
-      <View style={styles.cameraContainer}>{renderCamera()}</View>
-
-      <View style={[styles.bottomBar, { backgroundColor: colors.background }]}>
-        <AccessibleButton
-          title="Modes"
-          onPress={() => {
-            setIsAutoDetecting(false);
-            hapticFeedback?.("light");
-            speak?.("Navigating to modes selection", true);
-            router.push("/features");
-          }}
-          accessibilityLabel="Modes"
-          accessibilityHint="Switch between different V-EYE features"
-          style={styles.bottomButton}
-        />
-
-        <AccessibleButton
-          title="ENG"
-          onPress={() => {
-            hapticFeedback?.("light");
-            speak?.("Language is English", true);
-          }}
-          accessibilityLabel="Language"
-          accessibilityHint="Current language is English"
-          style={styles.bottomButton}
-        />
+      <View style={{ flex: 1 }}>{renderCamera()}</View>
+      <View style={[styles.bottomBar, { flexDirection: I18nManager.isRTL ? 'row-reverse' : 'row' }]}>
+        <AccessibleButton title={t("common.modes")} onPress={() => router.push("/features")} style={styles.bottomButton} />
+        <AccessibleButton title={I18nManager.isRTL ? "اردو" : "ENG"} onPress={() => {}} style={styles.bottomButton} />
       </View>
     </View>
   );
 };
 
+// ... Styles remain mostly similar but using minHeights/paddings for scaling ...
+
 export default CurrencyReaderScreen;
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  permissionCenter: { 
+    flex: 1, 
+    justifyContent: "center", 
+    alignItems: "center",
+    padding: 20 
+  },
 
   topBar: {
-    height: 120,
+    minHeight: 110,
     justifyContent: "center",
     alignItems: "center",
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    paddingTop:30,
   },
   topTitle: { fontSize: 24, fontWeight: "800" },
 

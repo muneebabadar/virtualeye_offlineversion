@@ -4,12 +4,14 @@ import { SemanticColors } from '@/constants/color';
 import React, { ReactNode } from 'react';
 
 import {
-    Pressable,
-    StyleProp,
-    StyleSheet,
-    Text,
-    TextStyle,
-    ViewStyle
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  Text,
+  TextStyle,
+  ViewStyle,
+  AccessibilityRole,
+  AccessibilityState
 } from 'react-native';
 
 interface AccessibleButtonProps {
@@ -22,6 +24,8 @@ interface AccessibleButtonProps {
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
   variant?: 'primary' | 'secondary' | 'danger';
+  accessibilityRole?: AccessibilityRole;
+  accessibilityState?: AccessibilityState;
 }
 
 export const AccessibleButton: React.FC<AccessibleButtonProps> = ({
@@ -34,53 +38,44 @@ export const AccessibleButton: React.FC<AccessibleButtonProps> = ({
   style,
   textStyle,
   variant = 'primary',
+  accessibilityRole = 'button',
+  accessibilityState,
 }) => {
   const { hapticFeedback } = useAccessibility();
   const colors = useAccessibleColors();
 
   const handlePress = () => {
     if (disabled) return;
-    hapticFeedback('medium');
+    hapticFeedback?.('medium');
     onPress();
   };
 
-  const getVariantStyles = (variant: string) => {
-    const baseStyle = styles.baseButton;
-
-    switch (variant) {
+  /** * FIX FOR 2304 & 7053: Defined inside the component to access 'colors'.
+   * Used type casting (as keyof typeof colors) to satisfy index signature.
+   */
+  const getVariantStyles = (v: string): ViewStyle => {
+    switch (v) {
       case 'primary':
-        return {
-          ...baseStyle,
-          backgroundColor: colors[SemanticColors.buttonPrimaryBg],
-        };
+        return { backgroundColor: colors[SemanticColors.buttonPrimaryBg as keyof typeof colors] };
       case 'secondary':
-        return {
-          ...baseStyle,
-          backgroundColor: colors[SemanticColors.buttonSecondaryBg],
-        };
+        return { backgroundColor: colors[SemanticColors.buttonSecondaryBg as keyof typeof colors] };
       case 'danger':
-        return {
-          ...baseStyle,
-          backgroundColor: colors[SemanticColors.buttonDangerBg],
-        };
+        return { backgroundColor: colors[SemanticColors.buttonDangerBg as keyof typeof colors] };
       default:
-        return {
-          ...baseStyle,
-          backgroundColor: colors[SemanticColors.buttonPrimaryBg],
-        };
+        return { backgroundColor: colors[SemanticColors.buttonPrimaryBg as keyof typeof colors] };
     }
   };
 
-  const getVariantTextStyles = (variant: string) => {
-    switch (variant) {
+  const getVariantTextStyles = (v: string): TextStyle => {
+    switch (v) {
       case 'primary':
-        return { color: colors[SemanticColors.buttonPrimaryText] };
+        return { color: colors[SemanticColors.buttonPrimaryText as keyof typeof colors] };
       case 'secondary':
-        return { color: colors[SemanticColors.buttonSecondaryText] };
+        return { color: colors[SemanticColors.buttonSecondaryText as keyof typeof colors] };
       case 'danger':
-        return { color: colors[SemanticColors.buttonDangerText] };
+        return { color: colors[SemanticColors.buttonDangerText as keyof typeof colors] };
       default:
-        return { color: colors[SemanticColors.buttonPrimaryText] };
+        return { color: colors[SemanticColors.buttonPrimaryText as keyof typeof colors] };
     }
   };
 
@@ -89,15 +84,15 @@ export const AccessibleButton: React.FC<AccessibleButtonProps> = ({
       onPress={handlePress}
       disabled={disabled}
       accessible={true}
-      accessibilityRole="button"
+      accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel || title}
       accessibilityHint={accessibilityHint}
-      accessibilityState={{ disabled }}
+      accessibilityState={{ disabled, ...accessibilityState }}
       style={({ pressed }) => [
         styles.button,
         getVariantStyles(variant),
         pressed && styles.pressed,
-        disabled && { backgroundColor: colors[SemanticColors.disabledBg] },
+        disabled && { backgroundColor: colors[SemanticColors.disabledBg as keyof typeof colors] },
         style,
       ]}
     >
@@ -108,7 +103,7 @@ export const AccessibleButton: React.FC<AccessibleButtonProps> = ({
           style={[
             styles.buttonText,
             getVariantTextStyles(variant),
-            disabled && { color: colors[SemanticColors.disabledText] },
+            disabled && { color: colors[SemanticColors.disabledText as keyof typeof colors] },
             textStyle,
           ]}
         >
@@ -126,14 +121,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: 48, // Standard Android touch target
     minWidth: 48,
-  },
-  baseButton: {
-    // Background color will be set dynamically via getVariantStyles
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   pressed: {
-    opacity: 0.8, // Slightly less aggressive than 0.7 for better visibility
+    opacity: 0.8,
   },
   buttonText: {
     fontSize: 18,

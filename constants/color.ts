@@ -2,6 +2,7 @@
 // All contrast ratios verified against white (#FFFFFF) and black (#000000) backgrounds
 // AA requires: 4.5:1 for normal text, 3:1 for large text/UI components
 
+export type ColorPalette = typeof AccessibleColors;
 export const AccessibleColors = {
   // Primary - Blue theme main color
   primary: '#007AFF',        // Main blue - 4.54:1 vs white (AA compliant)

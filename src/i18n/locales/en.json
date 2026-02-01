@@ -1,0 +1,133 @@
+{
+  "welcome": {
+    "appName": "V-EYE",
+    "tagline": "Virtual Eye Assistant",
+    "announcement": "Navigate the world through audio feedback. Available features include Object Navigation, Color Identification, Currency Reader, and Person Recognition.",
+    "featuresTitle": "Available Features",
+    "object": "Object Navigation",
+    "objectDesc": "Detect objects and navigate indoors",
+    "person": "Person Recognition",
+    "personDesc": "Recognize registered people by face",
+    "color": "Color Identification",
+    "colorDesc": "Identify colors of nearby objects",
+    "currency": "Currency Reader",
+    "currencyDesc": "Read currency denominations",
+    "mainMessage": "Navigate the world through audio feedback"
+
+  },
+
+
+
+  "settings": {
+    "title": "Settings",
+    "announcement": "Settings screen. Choose language or accessibility options.",
+    "languageSupport": "Language Support",
+    "highContrast": "High Contrast Mode",
+    "englishActive": "Language set to English",
+    "urduActive": "Language set to Urdu",
+    "language": "Language"
+  },
+  "common": {
+    "english": "English",
+    "urdu": "Urdu",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "back": "Back",
+    "modes":"Modes",
+    "goToModes": "Navigating to modes selection.",
+     "modesHint": "Switch between different V-EYE features",
+     "languageEnglish": "English",
+     "languageUrdu":"Urdu",
+    "languageHint": "Current language is English",
+    "loading": "Loading...",
+    "logoLabel": "V-EYE Application Logo",
+    "getStarted":"Get Started",
+    "languageChangedEnglish": "Language set to English",
+    "languageChangedUrdu": "Language set to Urdu"
+
+  },
+
+  "personReview": {
+    "title": "Profile Ready to Save",
+    "announcement": "Reviewing person {{name}}. {{count}} photos captured. Ready to save profile.",
+    "summary": "Name: {{name}}. {{count}} photos captured.",
+    "photos": "{{count}} photos captured",
+    "description": "Review completed. Tap below to save this person's profile.",
+    "save": "Save Profile",
+    "saveLabel": "Save profile for {{name}}",
+    "saveHint": "Save this person's registration data and return to the registration screen",
+    "saved": "Profile for {{name}} saved successfully.",
+    "backHint": "Return to name entry screen",
+    "defaultName": "Unknown"
+  },
+   "personRegistration": {
+    "title": "Person Registration",
+    "announcement": "Person registration screen. Register new people for recognition.",
+    "register": "Register New Person",
+    "openCamera": "Opening camera for person registration.",
+    "registerHint": "Starts capturing five photos to register a person"
+  },
+  "personName": {
+    "announcement": "Name entry screen. Enter the person's name to complete registration.",
+    "title": "Photos Complete!",
+    "instruction": "Enter name for this person",
+    "placeholder": "Enter name",
+    "continue": "Continue",
+    "emptyError": "Please enter a name first",
+    "saving": "Saving person named {{name}}. Proceeding to review.",
+    "back": "Go back",
+    "backHint": "Return to person capture screen"
+  },
+   "personCapture": {
+    "title": "Person Registration",
+    "announcement": "Person capture screen. Take 5 photos from different angles.",
+    "instructions": "Please take 5 photos of this person from different angles.",
+    "counter": "Photos captured: {{count}} out of 5",
+    "photoCaptured": "Photo {{count}} of 5 captured",
+    "completed": "All photos captured. Proceeding to name entry.",
+    "allowCamera": "Allow Camera for Live Feed",
+    "allowCameraLabel": "Allow camera access",
+    "allowCameraHint": "Grant camera permission to capture photos for person registration",
+    "captureLabel": "Capture photo {{count}} of 5",
+    "captureHint": "Captures a photo of the person from a different angle",
+    "liveFeedLabel": "Front camera live feed. Position your face in the center."
+  }
+  ,
+   "objectDetection": {
+    "title": "Object Detection",
+    "screenIntro": "Object Detection Screen. Use camera to detect objects.",
+    "allowCamera": "Allow Camera Access",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "scanning": "Scanning...",
+    "startDetection": "Start Detection",
+    "stopDetection": "Stop Detection",
+    "detectionFailed": "Detection failed",
+    "modes": "Modes",
+    "navigateModes": "Navigating to modes selection",
+    "languageEnglish": "Language is English",
+    "refreshConnection": "Refresh connection status",
+    "apiNotConnected": "API not connected"
+  },
+  "modal": {
+  "title": "This is a modal",
+  "backHome": "Go to home screen",
+  "backHomeLabel": "Go to home screen",
+  "backHomeHint": "Closes the modal and returns to the home screen"
+},
+ "setup": {
+    "languageSupport": "Language Support",
+    "accessibilityOptions": "Accessibility Options",
+    "highContrast": "High Contrast",
+    "enterEmail": "Enter Your Email",
+    "emailDescription": "We'll use this to save your data on your device.",
+    "emailPlaceholder": "your.email@example.com",
+    "startApp": "Starting V-EYE application",
+    "announcement": "Setup screen. Choose your language and accessibility preferences."
+
+  }
+
+
+}
+
+

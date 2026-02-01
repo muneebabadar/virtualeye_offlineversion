@@ -4,7 +4,8 @@ import { useAccessibility } from "@/contexts/AccessibilityContext";
 import { useAccessibleColors } from "@/hooks/useAccessibleColors";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo } from "react";
-import { StyleSheet, View } from "react-native";
+import { I18nManager, StyleSheet, View } from "react-native";
+import { useTranslation } from "react-i18next";
 
 /** Readable on-color (black/white) */
 const onColor = (bg: string) => {
@@ -13,7 +14,8 @@ const onColor = (bg: string) => {
   const r = parseInt(hex.slice(0, 2), 16) / 255;
   const g = parseInt(hex.slice(2, 4), 16) / 255;
   const b = parseInt(hex.slice(4, 6), 16) / 255;
-  const toLin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  const toLin = (c: number) =>
+    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
   const L = 0.2126 * toLin(r) + 0.7152 * toLin(g) + 0.0722 * toLin(b);
   return L > 0.45 ? "#000000" : "#FFFFFF";
 };
@@ -22,33 +24,39 @@ const PersonRegistrationScreen = () => {
   const router = useRouter();
   const { speak, hapticFeedback } = useAccessibility();
   const colors = useAccessibleColors();
+  const { t } = useTranslation();
+
   const onPrimary = useMemo(() => onColor(colors.primary), [colors.primary]);
 
+  /** Screen announcement */
   useEffect(() => {
-    speak?.("Person Registration Screen. Register new people for recognition.", true);
+    speak?.(t("personRegistration.announcement"), true);
   }, []);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
+      {/* Header */}
       <View style={[styles.topBar, { backgroundColor: colors.primary }]}>
         <AccessibleText
-          style={[styles.topTitle, { color: colors.textInverse }]}
           level={1}
+          accessibilityRole="header"
+          style={[styles.topTitle, { color: onPrimary }]}
         >
-          Person Registration
+          {t("personRegistration.title")}
         </AccessibleText>
       </View>
 
+      {/* Main Action */}
       <View style={styles.centerArea}>
         <AccessibleButton
-          title="Register New Person"
+          title={t("personRegistration.register")}
           onPress={() => {
             hapticFeedback?.("medium");
-            speak?.("Opening camera for person registration", true);
+            speak?.(t("personRegistration.openCamera"), true);
             router.push("/person-capture");
           }}
-          accessibilityLabel="Register New Person"
-          accessibilityHint="Starts capturing five photos to register a person"
+          accessibilityLabel={t("personRegistration.register")}
+          accessibilityHint={t("personRegistration.registerHint")}
           style={[
             styles.registerPersonButton,
             { backgroundColor: colors.primary, borderColor: colors.border },
@@ -57,26 +65,28 @@ const PersonRegistrationScreen = () => {
         />
       </View>
 
-      <View style={[styles.bottomBar, { backgroundColor: colors.background }]}>
+      {/* Bottom Navigation */}
+      <View style={[styles.bottomBar, { backgroundColor: colors.background , flexDirection: I18nManager.isRTL ? "row-reverse" : "row"}]}>
         <AccessibleButton
-          title="Modes"
+          title={t("common.modes")}
           onPress={() => {
             hapticFeedback?.("light");
-            speak?.("Navigating to modes selection", true);
+            speak?.(t("common.goToModes"), true);
             router.push("/features");
           }}
-          accessibilityLabel="Modes"
-          accessibilityHint="Switch between different V-EYE features"
+          accessibilityLabel={t("common.modes")}
+          accessibilityHint={t("common.modesHint")}
           style={styles.bottomButton}
         />
+
         <AccessibleButton
-          title="ENG"
+          title={t("common.languageEnglish")}
           onPress={() => {
             hapticFeedback?.("light");
-            speak?.("Language is English", true);
+            speak?.(t("common.languageEnglish"), true);
           }}
-          accessibilityLabel="Language"
-          accessibilityHint="Current language is English"
+          accessibilityLabel={t("common.languageEnglish")}
+          accessibilityHint={t("common.languageHint")}
           style={styles.bottomButton}
         />
       </View>
@@ -90,15 +100,26 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
 
   topBar: {
-    height: 120,
+    minHeight: 120,
     justifyContent: "center",
     alignItems: "center",
     borderBottomLeftRadius: 8,
     borderBottomRightRadius: 8,
+    paddingTop: 40,
   },
-  topTitle: { fontSize: 24, fontWeight: "800" },
+  topTitle: {
+    fontSize: 24,
+    fontWeight: "800",
+    textAlign: "center",
+  },
 
-  centerArea: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 },
+  centerArea: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+
   registerPersonButton: {
     width: "100%",
     borderRadius: 24,
@@ -106,9 +127,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderWidth: 2,
     alignItems: "center",
-    minHeight: 64,
+    minHeight: 64, // Android touch target safe
   },
 
-  bottomBar: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 12 },
-  bottomButton: { flex: 1, height: 80, borderRadius: 18, marginHorizontal: 6, alignItems: "center", justifyContent: "center" },
+  bottomBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap:12
+  },
+
+  bottomButton: {
+    flex: 1,
+    height: 80,
+    minHeight: 48, // Android minimum
+    borderRadius: 18,
+    marginHorizontal: 6,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

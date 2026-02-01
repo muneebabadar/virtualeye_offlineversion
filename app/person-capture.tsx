@@ -6,66 +6,65 @@ import { Feather } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
-
-/** Readable on-color (black/white) */
-const onColor = (bg: string) => {
-  const hex = (bg || "").replace("#", "");
-  if (hex.length !== 6) return "#000000";
-  const r = parseInt(hex.slice(0, 2), 16) / 255;
-  const g = parseInt(hex.slice(2, 4), 16) / 255;
-  const b = parseInt(hex.slice(4, 6), 16) / 255;
-  const toLin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
-  const L = 0.2126 * toLin(r) + 0.7152 * toLin(g) + 0.0722 * toLin(b);
-  return L > 0.45 ? "#000000" : "#FFFFFF";
-};
+import { StyleSheet, TouchableOpacity, View, PixelRatio } from "react-native";
+import { useTranslation } from "react-i18next";
 
 const PersonCaptureScreen = () => {
   const router = useRouter();
   const { speak, hapticFeedback } = useAccessibility();
   const colors = useAccessibleColors();
+  const { t } = useTranslation();
+
   const [permission, requestPermission] = useCameraPermissions();
   const [count, setCount] = useState(0);
 
-  const onBg = useMemo(() => onColor(colors.background), [colors.background]);
+  // FIX: Using PixelRatio to ensure text scales correctly for low-vision users
+  const fontScale = PixelRatio.getFontScale();
 
   useEffect(() => {
-    speak?.("Person capture screen. Take 5 photos from different angles.", true);
+    speak?.(t("personCapture.announcement"), true);
     if (!permission) requestPermission();
-  }, [permission, requestPermission]);
+  }, [permission]);
 
   const handleCapture = () => {
-    hapticFeedback?.("medium");
+    hapticFeedback?.("heavy"); // Stronger haptic for "shutter" feel
     const next = count + 1;
     setCount(next);
-    speak?.(`Photo ${next} of 5 captured`, true);
+
+    speak?.(t("personCapture.photoCaptured", { count: next }), true);
 
     if (next >= 5) {
-      speak?.("All photos captured. Proceeding to name entry.", true);
-      router.replace({ pathname: "/person-name", params: { count: String(next) } } as any);
+      speak?.(t("personCapture.completed"), true);
+      router.replace({
+        pathname: "/person-name",
+        params: { count: String(next) },
+      });
     }
   };
 
   const renderCamera = () => {
     if (!permission) return <View />;
-
     if (!permission.granted) {
       return (
         <View style={[styles.permissionCenterOverlay, { backgroundColor: colors.background }]}>
           <AccessibleButton
-            title="Allow Camera for Live Feed"
+            title={t("personCapture.allowCamera")}
             onPress={requestPermission}
-            accessibilityLabel="Allow camera access"
-            accessibilityHint="Grant camera permission to capture photos for person registration"
-            style={styles.permissionButton}
+            variant="primary"
           />
         </View>
       );
     }
 
     return (
-      <View style={[styles.cameraFrameOuter, { borderColor: colors.border }]}>
-        <CameraView style={styles.camera} facing="front" />
+      <View style={[styles.cameraFrameOuter, { borderColor: colors.primary }]}>
+        <CameraView 
+          style={styles.camera} 
+          facing="front"
+          // FIX: Labeling the camera feed for TalkBack
+          accessible={true}
+          accessibilityLabel={t("personCapture.liveFeedLabel")}
+        />
       </View>
     );
   };
@@ -73,45 +72,39 @@ const PersonCaptureScreen = () => {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.topBar, { backgroundColor: colors.primary }]}>
-        <AccessibleText
-          style={[styles.topTitle, { color: colors.textInverse }]}
-          accessibilityRole="header"
-          level={1}
-        >
-          Person Registration
+        <AccessibleText style={[styles.topTitle, { color: colors.textInverse }]} level={1}>
+          {t("personCapture.title")}
         </AccessibleText>
       </View>
 
       <View style={styles.content}>
-        {/* FIX: readable contrast (don’t rely on textSecondary if it’s too light) */}
-        <AccessibleText style={[styles.instructions, { color: onBg }]} accessibilityRole="text">
-          Please take 5 photos of this person from different angles.
+        <AccessibleText style={[styles.instructions, { color: colors.text, fontSize: 16 * fontScale }]}>
+          {t("personCapture.instructions")}
         </AccessibleText>
 
         {renderCamera()}
 
-        {/* FIX: readable contrast + proper announcement */}
         <AccessibleText
-          style={[styles.counterText, { color: onBg }]}
-          accessibilityRole="text"
-          accessibilityLabel={`Photos captured: ${count} out of 5`}
+          style={[styles.counterText, { color: colors.text, fontSize: 16 * fontScale }]}
+          accessibilityRole="header"
+          level={2}
         >
-          Photos captured: {count} / 5
+          {t("personCapture.counter", { count })}
         </AccessibleText>
 
         <View style={styles.captureWrapper}>
-          {/* FIX: explicit label + large touch target */}
           <TouchableOpacity
             style={[
               styles.captureButton,
-              { backgroundColor: colors.primary, borderColor: colors.textInverse },
+              { backgroundColor: colors.primary, borderColor: colors.border },
             ]}
             onPress={handleCapture}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            // FIX: Larger hitSlop for easier blind interaction
+            hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
             accessible
             accessibilityRole="button"
-            accessibilityLabel={`Capture photo ${count + 1} of 5`}
-            accessibilityHint="Captures a photo of the person from a different angle"
+            accessibilityLabel={t("personCapture.captureLabel", { count: count + 1 })}
+            accessibilityHint={t("personCapture.captureHint")}
           >
             <Feather name="camera" size={40} color={colors.textInverse} />
           </TouchableOpacity>
@@ -121,42 +114,37 @@ const PersonCaptureScreen = () => {
   );
 };
 
-export default PersonCaptureScreen;
-
 const styles = StyleSheet.create({
   root: { flex: 1 },
-
   topBar: {
-    height: 120,
+    minHeight: 100, // FIX: Adaptive height
     justifyContent: "center",
     alignItems: "center",
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
+    paddingTop: 40,
   },
   topTitle: { fontSize: 24, fontWeight: "800" },
-
-  content: { flex: 1, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 20 },
-  instructions: { fontSize: 14, marginBottom: 12 },
-
-  cameraFrameOuter: { flex: 1, borderRadius: 18, borderWidth: 2, overflow: "hidden", marginBottom: 16 },
+  content: { flex: 1, paddingHorizontal: 20, paddingBottom: 30 },
+  instructions: { textAlign: "center", marginBottom: 12 },
+  cameraFrameOuter: {
+    flex: 1,
+    borderRadius: 24,
+    borderWidth: 4,
+    overflow: "hidden",
+    marginBottom: 20,
+  },
   camera: { flex: 1 },
-
   permissionCenterOverlay: { flex: 1, alignItems: "center", justifyContent: "center" },
-  permissionButton: { paddingHorizontal: 24, paddingVertical: 16, borderRadius: 16, borderWidth: 1 },
-
-  counterText: { fontSize: 14, textAlign: "center", marginBottom: 12 },
-
-  captureWrapper: { alignItems: "center" },
-
-  // FIX: guaranteed large touch target
+  counterText: { fontWeight: "bold", textAlign: "center", marginBottom: 20 },
+  captureWrapper: { paddingBottom: 10 },
   captureButton: {
-    width: 80,
-    height: 80,
-    minWidth: 48,
-    minHeight: 48,
-    borderRadius: 40,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 4,
+    elevation: 4, // Android shadow for visual depth
   },
 });
+
+export default PersonCaptureScreen;

@@ -1,70 +1,369 @@
+// import { useRouter } from "expo-router";
+// import React, { useEffect, useMemo, useState } from "react";
+// import { StyleSheet, View, I18nManager } from "react-native";
+// import { useTranslation } from "react-i18next";
+
+// import { useAccessibility } from "@/contexts/AccessibilityContext";
+// import { useAccessibleColors } from "@/hooks/useAccessibleColors";
+// import { AccessibleButton } from "@/components/AccessibleButton";
+// import { AccessibleText } from "@/components/AccessibleText";
+
+// const FeaturesScreen: React.FC = () => {
+//   const router = useRouter();
+//   const { t, i18n } = useTranslation();
+//   const {
+//     speak,
+//     stopSpeaking,
+//     hapticFeedback,
+//     isScreenReaderEnabled,
+//   } = useAccessibility();
+//   const colors = useAccessibleColors();
+
+//   const [selectedMode, setSelectedMode] = useState<string | null>(null);
+
+//   /** 🔊 Screen announcement */
+//   useEffect(() => {
+//     const timer = setTimeout(() => {
+//       speak?.(t("welcome.announcement"), true);
+//     }, 400);
+
+//     return () => {
+//       clearTimeout(timer);
+//       stopSpeaking?.();
+//     };
+//   }, [i18n.language]);
+
+//   /** 🧠 Localized modes */
+//   const modes = useMemo(
+//     () => [
+//       {
+//         id: "object-navigation",
+//         title: t("welcome.object"),
+//         route: "/object-navigation",
+//         description: t("welcome.objectDesc"),
+//       },
+//       {
+//         id: "color-identification",
+//         title: t("welcome.color"),
+//         route: "/color-identification",
+//         description: t("welcome.colorDesc"),
+//       },
+//       {
+//         id: "currency-reader",
+//         title: t("welcome.currency"),
+//         route: "/currency-reader",
+//         description: t("welcome.currencyDesc"),
+//       },
+//       {
+//         id: "person-registration",
+//         title: t("welcome.person"),
+//         route: "/person-registration",
+//         description: t("welcome.personDesc"),
+//       },
+//     ],
+//     [i18n.language]
+//   );
+
+//   const handleModeSelect = (mode: (typeof modes)[0]) => {
+//     hapticFeedback?.("medium");
+//     speak?.(`${mode.title}. ${t("common.selected")}`, true);
+//     setSelectedMode(mode.id);
+
+//     setTimeout(() => {
+//       router.push(mode.route as any);
+//     }, 300);
+//   };
+
+//   const handleBack = () => {
+//     hapticFeedback?.("light");
+//     speak?.(t("common.back"), true);
+//     router.replace("/setup")
+//     // if (router.canGoBack()) {
+//     //   router.back();
+//     // }
+//   };
+
+//   return (
+//     <View style={[styles.root, { backgroundColor: colors.background }]}>
+//       {/* Header */}
+//       <View
+//         style={[styles.topBar, { backgroundColor: colors.primary }]}
+//         accessibilityRole="header"
+//       >
+//         {/* 🔙 Back Button */}
+//         <AccessibleButton
+//           onPress={handleBack}
+//           accessibilityLabel={t("common.back")}
+//           style={[
+//             styles.backButton,
+//             {
+//               left: I18nManager.isRTL ? undefined : 16,
+//               right: I18nManager.isRTL ? 16 : undefined,
+//             },
+//           ]}
+//         >
+//           <AccessibleText
+//             style={{ color: colors.textInverse, fontSize: 16 }}
+//           >
+//             {I18nManager.isRTL ? "→" : "←"} {t("common.back")}
+//           </AccessibleText>
+//         </AccessibleButton>
+
+//         {/* Title */}
+//         <AccessibleText
+//           style={[styles.topTitle, { color: colors.textInverse }]}
+//           level={1}
+//         >
+//           {t("common.modes")}
+//         </AccessibleText>
+//       </View>
+
+//       {/* Modes */}
+//       <View style={styles.centerArea}>
+//         {modes.map((mode, index) => (
+//           <View key={mode.id} style={styles.modeWrapper}>
+//             <AccessibleButton
+//               onPress={() => handleModeSelect(mode)}
+//               accessibilityLabel={`${mode.title}. ${mode.description}`}
+//               style={[
+//                 styles.modeButton,
+//                 {
+//                   backgroundColor: colors.primary,
+//                   borderColor:
+//                     selectedMode === mode.id
+//                       ? colors.textInverse
+//                       : colors.primary,
+//                   flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
+//                 },
+//               ]}
+//             >
+//               <View
+//                 style={[
+//                   styles.modeTextContainer,
+//                   {
+//                     alignItems: I18nManager.isRTL
+//                       ? "flex-end"
+//                       : "flex-start",
+//                   },
+//                 ]}
+//               >
+//                 <AccessibleText
+//                   level={2}
+//                   style={[
+//                     styles.modeTitle,
+//                     {
+//                       color: colors.textInverse,
+//                       textAlign: I18nManager.isRTL ? "right" : "left",
+//                     },
+//                   ]}
+//                 >
+//                   {mode.title}
+//                 </AccessibleText>
+
+//                 <AccessibleText
+//                   style={[
+//                     styles.modeSub,
+//                     {
+//                       color: colors.textInverse,
+//                       textAlign: I18nManager.isRTL ? "right" : "left",
+//                     },
+//                   ]}
+//                 >
+//                   {mode.description}
+//                 </AccessibleText>
+//               </View>
+//             </AccessibleButton>
+
+//             {isScreenReaderEnabled && (
+//               <AccessibleText
+//                 accessibilityLabel={`${t("common.mode")} ${
+//                   index + 1
+//                 } ${t("common.of")} ${modes.length}`}
+//                 style={[
+//                   styles.srModeNumber,
+//                   {
+//                     backgroundColor: colors.secondary,
+//                     color: colors.textInverse,
+//                     right: I18nManager.isRTL ? undefined : 12,
+//                     left: I18nManager.isRTL ? 12 : undefined,
+//                   },
+//                 ]}
+//               >
+//                 {index + 1} / {modes.length}
+//               </AccessibleText>
+//             )}
+//           </View>
+//         ))}
+//       </View>
+
+//       Footer
+//       <View style={[styles.footer, { borderColor: colors.border }]}>
+//         <AccessibleButton
+//           onPress={() => router.push("/settings")}
+//           accessibilityLabel={t("settings.title")}
+//           style={[
+//             styles.settingsButton,
+//             { backgroundColor: colors.secondary },
+//           ]}
+//         >
+//           <AccessibleText
+//             level={2}
+//             style={{
+//               color: colors.textInverse,
+//               fontSize: 18,
+//               fontWeight: "700",
+//             }}
+//           >
+//             {t("settings.title")}
+//           </AccessibleText>
+//         </AccessibleButton>
+//       </View>
+//     </View>
+//   );
+// };
+
+// export default FeaturesScreen;
+
+// const styles = StyleSheet.create({
+//   root: { flex: 1 },
+
+//   topBar: {
+//     minHeight: 100,
+//     justifyContent: "center",
+//     alignItems: "center",
+//     paddingTop: 40,
+//   },
+
+//   topTitle: {
+//     fontSize: 24,
+//     fontWeight: "800",
+//   },
+
+//   backButton: {
+//     position: "absolute",
+//     bottom: 20,
+//     padding: 10,
+//   },
+
+//   centerArea: {
+//     flex: 1,
+//     paddingHorizontal: 20,
+//     paddingVertical: 20,
+//   },
+
+//   modeWrapper: { marginBottom: 16 },
+
+//   modeButton: {
+//     borderRadius: 20,
+//     minHeight: 100,
+//     paddingHorizontal: 20,
+//     borderWidth: 2,
+//     justifyContent: "center",
+//   },
+
+//   modeTextContainer: { flex: 1 },
+
+//   modeTitle: {
+//     fontSize: 20,
+//     fontWeight: "800",
+//     lineHeight: I18nManager.isRTL ? 30 : 24,
+//   },
+
+//   modeSub: {
+//     fontSize: 15,
+//     marginTop: 4,
+//   },
+
+//   srModeNumber: {
+//     position: "absolute",
+//     top: -8,
+//     paddingHorizontal: 10,
+//     paddingVertical: 4,
+//     borderRadius: 10,
+//     overflow: "hidden",
+//   },
+
+//   footer: {
+//     padding: 20,
+//     borderTopWidth: 2,
+//   },
+
+//   settingsButton: {
+//     height: 60,
+//     borderRadius: 16,
+//     justifyContent: "center",
+//     alignItems: "center",
+//   },
+// });
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { StyleSheet, View, I18nManager } from "react-native";
+import { useTranslation } from "react-i18next";
 
 import { useAccessibility } from "@/contexts/AccessibilityContext";
 import { useAccessibleColors } from "@/hooks/useAccessibleColors";
-
 import { AccessibleButton } from "@/components/AccessibleButton";
 import { AccessibleText } from "@/components/AccessibleText";
 
 const FeaturesScreen: React.FC = () => {
   const router = useRouter();
-  const { speak, stopSpeaking, hapticFeedback, isScreenReaderEnabled } = useAccessibility();
+  const { t, i18n } = useTranslation();
+  const {
+    speak,
+    stopSpeaking,
+    hapticFeedback,
+    isScreenReaderEnabled,
+  } = useAccessibility();
   const colors = useAccessibleColors();
 
   const [selectedMode, setSelectedMode] = useState<string | null>(null);
 
+  /** 🔊 Screen announcement */
   useEffect(() => {
-    const welcomeMessage =
-      "V-EYE Modes Selection. Four modes available: " +
-      "Object Navigation, Color Identification, Currency Reader, and Person Registration. " +
-      "Select a mode to begin.";
-
     const timer = setTimeout(() => {
-      speak?.(welcomeMessage, true);
-    }, 500);
+      speak?.(t("welcome.announcement"), true);
+    }, 400);
 
     return () => {
       clearTimeout(timer);
       stopSpeaking?.();
     };
-  }, []);
+  }, [i18n.language]);
 
-  const modes = [
-    {
-      id: "object-navigation",
-      title: "Object Navigation",
-      route: "/object-navigation",
-      description: "Detect objects and navigate indoors",
-      accessibilityHint: "Navigate to object navigation mode. Detects objects and obstacles.",
-    },
-    {
-      id: "color-identification",
-      title: "Color Identification",
-      route: "/color-identification",
-      description: "Identify colors of objects",
-      accessibilityHint: "Navigate to color identification mode. Identifies dominant colors.",
-    },
-    {
-      id: "currency-reader",
-      title: "Currency Reader",
-      route: "/currency-reader",
-      description: "Read currency denominations",
-      accessibilityHint: "Navigate to currency reader mode. Reads currency denominations.",
-    },
-    {
-      id: "person-registration",
-      title: "Person Registration",
-      route: "/person-registration",
-      description: "Register and manage people",
-      accessibilityHint: "Navigate to person registration mode. Register new people for recognition.",
-    },
-  ];
+  /** 🧠 Localized modes */
+  const modes = useMemo(
+    () => [
+      {
+        id: "object-navigation",
+        title: t("welcome.object"),
+        route: "/object-navigation",
+        description: t("welcome.objectDesc"),
+      },
+      {
+        id: "color-identification",
+        title: t("welcome.color"),
+        route: "/color-identification",
+        description: t("welcome.colorDesc"),
+      },
+      {
+        id: "currency-reader",
+        title: t("welcome.currency"),
+        route: "/currency-reader",
+        description: t("welcome.currencyDesc"),
+      },
+      {
+        id: "person-registration",
+        title: t("welcome.person"),
+        route: "/person-registration",
+        description: t("welcome.personDesc"),
+      },
+    ],
+    [i18n.language]
+  );
 
-  const handleModeSelect = (mode: typeof modes[0]) => {
+  const handleModeSelect = (mode: (typeof modes)[0]) => {
     hapticFeedback?.("medium");
-    speak?.(`${mode.title} selected.`, true);
+    speak?.(`${mode.title}. ${t("common.selected")}`, true);
     setSelectedMode(mode.id);
 
     setTimeout(() => {
@@ -72,76 +371,115 @@ const FeaturesScreen: React.FC = () => {
     }, 300);
   };
 
-  const handleSettings = () => {
-    hapticFeedback?.("medium");
-    speak?.("Navigating to settings", true);
-    router.push("/settings");
+  const handleBack = () => {
+    hapticFeedback?.("light");
+    speak?.(t("common.back"), true);
+    router.replace("/setup");
   };
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {/* Top Bar */}
+      {/* Header */}
       <View
-        style={[
-          styles.topBar,
-          { backgroundColor: colors.primary, borderColor: colors.primary },
-        ]}
-        accessible
+        style={[styles.topBar, { backgroundColor: colors.primary }]}
         accessibilityRole="header"
-        accessibilityLabel="V-EYE application modes selection"
       >
+        {/* 🔙 Back Button */}
+        <AccessibleButton
+          onPress={handleBack}
+          accessibilityLabel={t("common.back")}
+          style={[
+            styles.backButton,
+            {
+              left: I18nManager.isRTL ? undefined : 16,
+              right: I18nManager.isRTL ? 16 : undefined,
+            },
+          ]}
+          title={`${I18nManager.isRTL ? "→" : "←"} ${t("common.back")}`}
+          textStyle={{
+            color: colors.textInverse,
+            fontSize: 16,
+          }}
+        />
+
+        {/* Title */}
         <AccessibleText
           style={[styles.topTitle, { color: colors.textInverse }]}
-          accessibilityRole="header"
           level={1}
         >
-          Select Mode
+          {t("common.modes")}
         </AccessibleText>
       </View>
 
-      {/* Mode Buttons */}
+      {/* Modes */}
       <View style={styles.centerArea}>
         {modes.map((mode, index) => (
           <View key={mode.id} style={styles.modeWrapper}>
             <AccessibleButton
               onPress={() => handleModeSelect(mode)}
               accessibilityLabel={`${mode.title}. ${mode.description}`}
-              accessibilityHint={mode.accessibilityHint}
               style={[
                 styles.modeButton,
                 {
                   backgroundColor: colors.primary,
-                  borderColor: selectedMode === mode.id ? colors.textInverse : colors.primary,
+                  borderColor:
+                    selectedMode === mode.id
+                      ? colors.textInverse
+                      : colors.primary,
+                  flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
                 },
-                selectedMode === mode.id ? styles.modeButtonSelected : null,
               ]}
             >
-              <View style={styles.modeInner}>
-                <View style={styles.modeTextContainer}>
-                  <AccessibleText
-                    style={[styles.modeTitle, { color: colors.textInverse }]}
-                    accessibilityRole="header"
-                    level={2}
-                  >
-                    {mode.title}
-                  </AccessibleText>
-                  <AccessibleText
-                    style={[styles.modeSub, { color: colors.textInverse }]}
-                    accessibilityRole="text"
-                  >
-                    {mode.description}
-                  </AccessibleText>
-                </View>
+              <View
+                style={[
+                  styles.modeTextContainer,
+                  {
+                    alignItems: I18nManager.isRTL
+                      ? "flex-end"
+                      : "flex-start",
+                  },
+                ]}
+              >
+                <AccessibleText
+                  level={2}
+                  style={[
+                    styles.modeTitle,
+                    {
+                      color: colors.textInverse,
+                      textAlign: I18nManager.isRTL ? "right" : "left",
+                    },
+                  ]}
+                >
+                  {mode.title}
+                </AccessibleText>
+
+                <AccessibleText
+                  style={[
+                    styles.modeSub,
+                    {
+                      color: colors.textInverse,
+                      textAlign: I18nManager.isRTL ? "right" : "left",
+                    },
+                  ]}
+                >
+                  {mode.description}
+                </AccessibleText>
               </View>
             </AccessibleButton>
 
             {isScreenReaderEnabled && (
               <AccessibleText
-                accessible
-                accessibilityLabel={`Mode ${index + 1} of ${modes.length}`}
+                accessibilityLabel={`${t("common.mode")} ${
+                  index + 1
+                } ${t("common.of")} ${modes.length}`}
                 style={[
                   styles.srModeNumber,
-                  { backgroundColor: colors.primary, color: colors.textInverse },
+                  {
+                    backgroundColor: colors.secondary,
+                    color: colors.textInverse,
+                    right: I18nManager.isRTL ? undefined : 12,
+                    left: I18nManager.isRTL ? 12 : undefined,
+                  },
                 ]}
               >
                 {index + 1} / {modes.length}
@@ -151,22 +489,23 @@ const FeaturesScreen: React.FC = () => {
         ))}
       </View>
 
-      {/* Settings Button - Footer */}
-      <View style={styles.footer}>
+      {/* Footer – FIXED Settings Button */}
+      <View style={[styles.footer, { borderColor: colors.border }]}>
         <AccessibleButton
-          onPress={handleSettings}
-          accessibilityLabel="Settings"
-          accessibilityHint="Open settings to change language and high contrast options"
-          style={[styles.settingsButton, { backgroundColor: colors.secondary }]}
-        >
-          <AccessibleText
-            style={{ color: colors.textInverse, fontSize: 18, fontWeight: "700", textAlign: "center" }}
-            accessibilityRole="header"
-            level={2}
-          >
-            Settings
-          </AccessibleText>
-        </AccessibleButton>
+          title={t("settings.title")}
+          onPress={() => router.push("/settings")}
+          accessibilityLabel={t("settings.title")}
+          style={[
+            styles.settingsButton,
+            { backgroundColor: colors.secondary },
+          ]}
+          textStyle={{
+            color: colors.primary, // ✅ visible text
+            fontSize: 18,
+            fontWeight: "700",
+            textAlign: "center",
+          }}
+        />
       </View>
     </View>
   );
@@ -176,42 +515,70 @@ export default FeaturesScreen;
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+
   topBar: {
-    height: 120,
+    minHeight: 100,
     justifyContent: "center",
     alignItems: "center",
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
-    paddingTop: Platform.OS === "ios" ? 20 : 0,
+    paddingTop: 40,
   },
-  topTitle: { fontSize: 24, fontWeight: "800" },
-  centerArea: { flex: 1, paddingHorizontal: 20, paddingVertical: 24 },
-  modeWrapper: { marginBottom: 20, position: "relative" },
+
+  topTitle: {
+    fontSize: 24,
+    fontWeight: "800",
+  },
+
+  backButton: {
+    position: "absolute",
+    bottom: 20,
+    padding: 10,
+  },
+
+  centerArea: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+
+  modeWrapper: { marginBottom: 16 },
+
   modeButton: {
     borderRadius: 20,
-    height: 100,
-    paddingHorizontal: 16,
-    justifyContent: "center",
+    minHeight: 100,
+    paddingHorizontal: 20,
     borderWidth: 2,
+    justifyContent: "center",
   },
-  modeButtonSelected: { transform: [{ scale: 0.99 }] },
-  modeInner: { flexDirection: "row", alignItems: "center", paddingVertical: 8 },
+
   modeTextContainer: { flex: 1 },
-  modeTitle: { fontSize: 20, fontWeight: "800" },
-  modeSub: { fontSize: 14 },
+
+  modeTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    lineHeight: I18nManager.isRTL ? 30 : 24,
+  },
+
+  modeSub: {
+    fontSize: 15,
+    marginTop: 4,
+  },
+
   srModeNumber: {
     position: "absolute",
-    top: 8,
-    right: 12,
-    paddingHorizontal: 8,
+    top: -8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8,
-    fontSize: 12,
-    fontWeight: "600",
+    borderRadius: 10,
+    overflow: "hidden",
   },
-  footer: { padding: 20, borderTopWidth: 1, borderColor: "#ccc" },
+
+  footer: {
+    padding: 20,
+    borderTopWidth: 2,
+  },
+
   settingsButton: {
-    paddingVertical: 14,
+    height: 60,
     borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
