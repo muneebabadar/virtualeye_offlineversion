@@ -8,6 +8,9 @@
     "scheme": "veye",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "assetBundlePatterns": [
+      "assets/**/*"
+    ],
     "ios": {
       "supportsTablet": true
     },
@@ -50,8 +53,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "688a60f9-7433-45d5-9587-5b3d4fdfc976"
+        "projectId": "ea9a4af8-2d72-4ea0-b0e7-2a277b0187ab"
       }
-    }
+    },
+    "owner": "ashbah"
   }
 }

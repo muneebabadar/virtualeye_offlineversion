@@ -218,7 +218,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { I18nManager, Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { registerPerson } from "@/services/personRecognitionApi";
+import DatabaseService from "@/src/services/DatabaseService";
 
 /** Choose readable text color (black/white) */
 const onColor = (bg: string) => {
@@ -292,22 +292,13 @@ const PersonReviewScreen = () => {
     hapticFeedback?.("medium");
 
     try {
-      const result = await registerPerson(personName, imageUris);
-
-      if (result?.success) {
-        hapticFeedback?.("success");
-        speak?.(t("personReview.saved", { name: personName }), true);
-        router.replace("/person-registration" as any);
-      } else {
-        hapticFeedback?.("error");
-        speak?.(
-          result?.error || t("common.apiErrorBody"),
-          true
-        );
-      }
+      DatabaseService.savePersonProfile(personName, imageUris);
+      hapticFeedback?.("success");
+      speak?.(t("personReview.saved", { name: personName }), true);
+      router.replace("/person-registration" as any);
     } catch (error) {
       hapticFeedback?.("error");
-      speak?.(t("common.apiErrorBody"), true);
+      speak?.(t("personReview.saveFailed", "Failed to save profile."), true);
     } finally {
       setIsSaving(false);
     }

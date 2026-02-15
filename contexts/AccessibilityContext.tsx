@@ -172,55 +172,54 @@ export const AccessibilityProvider = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isHighContrastEnabled, setIsHighContrastEnabled] = useState(false);
   const [urduVoiceAvailable, setUrduVoiceAvailable] = useState(false);
+  const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+  const [preferredUrduLanguage, setPreferredUrduLanguage] = useState<string | null>(null);
 
-  // 🔍 Check available voices on mount
+  // Check available voices on mount
   useEffect(() => {
     checkUrduVoiceAvailability();
     AccessibilityInfo.isScreenReaderEnabled().then(setIsScreenReaderEnabled);
   }, []);
 
-  // 🛑 Stop speech whenever language changes (CRITICAL)
+  // Stop speech whenever language changes (critical)
   useEffect(() => {
     Speech.stop();
     setIsSpeaking(false);
   }, [i18n.language]);
 
-  /**
-   * 🔍 Check if Urdu voice is available on device
-   */
+  // Check if Urdu voice is available on device
   const checkUrduVoiceAvailability = async () => {
     try {
       const voices = await Speech.getAvailableVoicesAsync();
-      
-      console.log("📢 Available TTS voices:", voices.length);
-      
+      const languages = [...new Set(voices.map(v => v.language))];
+      setAvailableLanguages(languages);
+
       // Check for Urdu voices (ur-PK, ur-IN, or just "ur")
-      const hasUrdu = voices.some((voice) =>
-        voice.language.toLowerCase().startsWith("ur")
+      const urduVoices = voices.filter(v =>
+        v.language.toLowerCase().startsWith("ur")
       );
+      const hasUrdu = urduVoices.length > 0;
 
       setUrduVoiceAvailable(hasUrdu);
 
       if (!hasUrdu) {
-        console.warn("⚠️ No Urdu TTS voice found on device!");
-        console.log("Available languages:", 
-          [...new Set(voices.map(v => v.language))].slice(0, 20)
-        );
+        console.warn("No Urdu TTS voice found on device. Falling back to English.");
+        setPreferredUrduLanguage(null);
       } else {
-        const urduVoices = voices.filter(v => 
-          v.language.toLowerCase().startsWith("ur")
-        );
-        console.log("✅ Urdu voices found:", urduVoices);
+        // Prefer ur-PK if available, else ur-IN, else first ur*
+        const urPk = urduVoices.find(v => v.language.toLowerCase() === "ur-pk");
+        const urIn = urduVoices.find(v => v.language.toLowerCase() === "ur-in");
+        const preferred = urPk?.language ?? urIn?.language ?? urduVoices[0]?.language ?? null;
+        setPreferredUrduLanguage(preferred);
       }
     } catch (error) {
-      console.error("❌ Error checking voices:", error);
+      console.error("Error checking voices:", error);
       setUrduVoiceAvailable(false);
+      setPreferredUrduLanguage(null);
     }
   };
 
-  /**
-   * 🗣️ Speak text with improved Urdu support
-   */
+  // Speak text with improved Urdu support
   const speak = async (text: string, immediate = false) => {
     if (!text) return;
 
@@ -230,60 +229,39 @@ export const AccessibilityProvider = ({
       }
 
       const isUrdu = i18n.language === "ur";
-      
-      // 🎯 Better language code handling
+
+      // Choose a supported language; fallback to English if Urdu is missing
       let langCode = "en-US";
-      let voiceIdentifier: string | undefined = undefined;
-
       if (isUrdu) {
-        if (!urduVoiceAvailable) {
-          console.warn("⚠️ Urdu voice not available, using transliteration fallback");
-          // You could transliterate Urdu text to Roman Urdu here if needed
-        }
-
-        // Try multiple Urdu locale codes
-        if (Platform.OS === "android") {
-          langCode = "ur-PK"; // Pakistani Urdu (primary)
-          // Android often needs explicit voice selection
-        } else if (Platform.OS === "ios") {
-          langCode = "ur-PK"; // iOS also supports ur-PK
-          // iOS might have specific voice identifiers
-        }
-      } else {
+        langCode = preferredUrduLanguage ?? "en-US";
+      } else if (availableLanguages.includes("en-US")) {
         langCode = "en-US";
+      } else if (availableLanguages.length > 0) {
+        langCode = availableLanguages[0];
       }
-
-      console.log(`🗣️ Speaking in ${langCode}: "${text.substring(0, 50)}..."`);
 
       setIsSpeaking(true);
 
       const speechOptions: Speech.SpeechOptions = {
         language: langCode,
-        rate: isUrdu ? 0.75 : 0.95, // Slower rate for Urdu (better clarity)
+        rate: isUrdu ? 0.75 : 0.95,
         pitch: 1.0,
         onDone: () => {
           setIsSpeaking(false);
-          console.log("✅ Speech completed");
         },
         onStopped: () => {
           setIsSpeaking(false);
-          console.log("🛑 Speech stopped");
         },
         onError: (error) => {
           setIsSpeaking(false);
-          console.error("❌ Speech error:", error);
+          console.error("Speech error:", error);
         },
       };
-
-      // Add voice identifier if needed (for iOS)
-      if (voiceIdentifier) {
-        speechOptions.voice = voiceIdentifier;
-      }
 
       Speech.speak(text, speechOptions);
 
     } catch (e) {
-      console.error("❌ Speech exception:", e);
+      console.error("Speech exception:", e);
       setIsSpeaking(false);
     }
   };
